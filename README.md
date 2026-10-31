@@ -62,7 +62,7 @@ Alternatif di Bash:
 bash install.sh
 ```
 
-Installer akan memasang dependency, membangun dan menguji plugin, menawarkan endpoint default `v1` atau `v2`, lalu meminta API key dengan input tersembunyi. Tekan Enter untuk mempertahankan key yang sudah tersedia. Jika belum ada key, isikan key agar validasi bisa berjalan. Setelah seluruh pemeriksaan berhasil, mulai ulang OpenCode dan jalankan `/mytoken`.
+Installer akan memasang dependency, membangun dan menguji plugin, menawarkan endpoint default `v1` atau `v2`, lalu meminta API key yang disamarkan sebagai `*` untuk setiap karakter. Tanda `*` langsung muncul saat mengetik atau paste dan mengikuti penghapusan karakter, sehingga input yang terisi terlihat tanpa menampilkan nilai key. Tekan Enter tanpa mengetik untuk mempertahankan key yang sudah tersedia. Jika belum ada key, isikan key agar validasi bisa berjalan. Setelah seluruh pemeriksaan berhasil, mulai ulang OpenCode; ringkasan usage akan tampil otomatis.
 
 Installer mengerjakan konfigurasi secara otomatis:
 

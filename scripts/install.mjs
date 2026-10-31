@@ -118,19 +118,30 @@ function parseArgs(args) {
   return options;
 }
 
-async function question(prompt, { secret = false } = {}) {
-  // A muted terminal output keeps typed and pasted credentials out of the screen.
-  const output = secret ? new Writable({ write(_chunk, _encoding, callback) { callback(); } }) : process.stdout;
-  const input = createInterface({ input: process.stdin, output, terminal: true });
+export async function question(prompt, { secret = false, input = process.stdin, output = process.stdout } = {}) {
+  // Preserve readline's prompt and terminal controls while masking typed and
+  // pasted characters, including full-line redraws after editing the value.
+  let reader;
+  const masked = secret ? new Writable({
+    write(chunk, _encoding, callback) {
+      const text = chunk.toString().split(/(\x1b\[[0-?]*[ -/]*[@-~])/u).map((part) => {
+        if (part.startsWith("\x1b[")) return part;
+        const prefix = part === prompt + (reader?.line || "") ? prompt : "";
+        return prefix + part.slice(prefix.length).replace(/[^\r\n\b\t]/gu, "*");
+      }).join("");
+      output.write(text);
+      callback();
+    },
+  }) : output;
+  if (secret) Object.defineProperty(masked, "columns", { get: () => output.columns });
+  reader = createInterface({ input, output: masked, terminal: true });
   const controller = new AbortController();
-  input.on("SIGINT", () => controller.abort());
-  input.on("close", () => controller.abort());
-  if (secret) process.stdout.write(prompt);
+  reader.on("SIGINT", () => controller.abort());
+  reader.on("close", () => controller.abort());
   try {
-    return await input.question(secret ? "" : prompt, { signal: controller.signal });
+    return await reader.question(prompt, { signal: controller.signal });
   } finally {
-    input.close();
-    if (secret) process.stdout.write("\n");
+    reader.close();
   }
 }
 
@@ -186,7 +197,7 @@ async function main(ui) {
         if (!["v1", "v2"].includes(version)) ui.note("Pilih v1 atau v2.");
       } while (!["v1", "v2"].includes(version));
     }
-    const entered = await question(`        API key (${apiKey ? "Enter: gunakan key yang tersedia" : "wajib diisi"}; input tersembunyi): `, { secret: true });
+    const entered = await question(`        API key (${apiKey ? "Enter: gunakan key yang tersedia" : "wajib diisi"}; disamarkan dengan *): `, { secret: true });
     apiKey = entered.trim() || apiKey;
   }
   ui.addSecret(apiKey);
