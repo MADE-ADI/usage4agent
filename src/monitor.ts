@@ -82,8 +82,8 @@ export function startUsageMonitor({
 
 export function monitorText(state: UsageState): string {
   if (state.snapshot) {
-    return state.snapshot.summary + (state.error ? "\nData terakhir · Pembaruan gagal, periksa key/koneksi." : "");
+    return state.snapshot.summary.replace(/[\r\n]+/g, " · ") + (state.error ? " · Data terakhir" : "");
   }
-  if (state.error) return `Sekai · Usage tidak tersedia\n${state.error}`;
+  if (state.error) return "Sekai · Usage tidak tersedia";
   return "Sekai · Memuat usage…";
 }

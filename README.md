@@ -1,6 +1,6 @@
 # opencode-mytoken
 
-Plugin TUI untuk menampilkan penggunaan Sekai Gateway langsung di OpenCode v2. Ringkasan otomatis muncul pada halaman awal dan di atas kolom input percakapan, tanpa mengetik `/mytoken`. Plugin tidak memanggil model AI atau menambah pesan ke percakapan.
+Plugin TUI untuk menampilkan penggunaan Sekai Gateway di statusline OpenCode v2. Ringkasan otomatis muncul pada satu baris status di bagian paling bawah layar, baik pada halaman awal maupun sesi percakapan, tanpa mengetik `/mytoken`. Plugin tidak memanggil model AI atau menambah pesan ke percakapan.
 
 ## Kebutuhan
 
@@ -107,11 +107,11 @@ Saat terhubung ke server OpenCode jarak jauh, key dan konfigurasi tetap dibaca d
 
 ## Penggunaan
 
-Setelah instalasi, mulai ulang OpenCode. Ringkasan langsung tampil dan diperbarui setiap **60 detik**, serta setelah respons selesai atau gagal. Event yang berdekatan digabungkan dengan jeda minimal **5 detik** agar request tidak menumpuk. Pembaruan antar-panel memakai satu monitor bersama.
+Setelah instalasi, mulai ulang OpenCode. Ringkasan langsung tampil di statusline satu baris dan diperbarui setiap **60 detik**, serta setelah respons selesai atau gagal. Event yang berdekatan digabungkan dengan jeda minimal **5 detik** agar request tidak menumpuk. Halaman awal dan sesi percakapan memakai satu monitor bersama. Teks dipotong jika ruang statusline tidak cukup, tanpa menambah baris di area editor.
 
 - Endpoint v1 menampilkan saldo uang dan token PAYG terpakai.
 - Endpoint v2 menampilkan satu baris ringkas berisi nama Coding Plan dan persentase penggunaan 5 jam, mingguan, serta bulanan.
-- Ketika request gagal, data terakhir tetap terlihat dengan penanda pembaruan gagal. Jika belum pernah berhasil, panel menampilkan pesan error.
+- Ketika request gagal, data terakhir tetap terlihat dengan penanda `Data terakhir`. Jika belum pernah berhasil, statusline menampilkan `Usage tidak tersedia`. Gunakan `/mytoken` untuk melihat pesan error lengkap.
 - Pembaruan otomatis tidak membuka dialog atau notifikasi. Request dan timer dihentikan saat plugin dinonaktifkan atau dimuat ulang.
 
 Contoh tampilan untuk Coding Plan:

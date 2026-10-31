@@ -14,14 +14,19 @@ export default Plugin.define({
       // needs no additional JSX transform or separate bundled UI runtime.
       const text = createElement("text");
       setProp(text, "fg", context.theme.text.base);
-      setProp(text, "wrapMode", "word");
+      setProp(text, "wrapMode", "none");
+      setProp(text, "truncate", true);
+      setProp(text, "height", 1);
+      setProp(text, "position", "absolute");
+      setProp(text, "bottom", 0);
+      setProp(text, "left", 0);
+      setProp(text, "width", "100%");
       setProp(text, "paddingLeft", 1);
       setProp(text, "paddingRight", 1);
       createEffect(() => setProp(text, "content", monitorText(state())));
       return text as unknown as JSX.Element;
     };
-    const removeHome = context.ui.slot({ before: "home.footer", render: renderUsage });
-    const removeComposer = context.ui.slot({ append: "session.composer.top", render: renderUsage });
+    const removeStatus = context.ui.slot({ append: "app", render: renderUsage });
     const stopSucceeded = context.data.on("session.execution.succeeded", monitor.requestRefresh);
     const stopFailed = context.data.on("session.execution.failed", monitor.requestRefresh);
     let loading = false;
@@ -72,8 +77,7 @@ export default Plugin.define({
       monitor.dispose();
       stopSucceeded();
       stopFailed();
-      removeHome();
-      removeComposer();
+      removeStatus();
     };
   },
 });

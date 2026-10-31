@@ -120,6 +120,18 @@ test("unexpected errors do not leak credentials into the inline display", async 
   assert.match(monitorText({ loading: true }), /Memuat usage/);
 });
 
+test("statusline remains one line while loading, showing data, stale, or failing", () => {
+  const states = [
+    { loading: true },
+    { loading: false, snapshot: snapshot("Coding Plan Pro · 5 jam 0%") },
+    { loading: false, snapshot: snapshot("Coding Plan Pro\n5 jam 0%"), error: "HTTP 401" },
+    { loading: false, error: "HTTP 401\nPeriksa API key" },
+  ];
+  for (const state of states) assert.doesNotMatch(monitorText(state), /[\r\n]/);
+  assert.match(monitorText(states[2]), /Data terakhir/);
+  assert.equal(monitorText(states[3]), "Sekai · Usage tidak tersedia");
+});
+
 test("disposing aborts an active request and prevents stale UI updates", async () => {
   let complete;
   let signal;
