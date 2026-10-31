@@ -1,0 +1,157 @@
+# opencode-mytoken
+
+Plugin TUI untuk mengecek penggunaan Sekai Gateway melalui `/mytoken` di OpenCode v2. Hasil ditampilkan langsung dalam dialog tanpa memanggil model AI atau menambah pesan ke percakapan.
+
+## Kebutuhan
+
+- OpenCode **2.2.5** (versi yang digunakan untuk pengembangan).
+- Node.js **22+** dan npm. Installer membangun plugin secara otomatis.
+- API key Sekai Gateway.
+- Bash, `curl`, dan `tar` untuk instalasi melalui curl.
+
+## Instalasi cepat
+
+Tanpa clone atau download manual:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MADE-ADI/usage4agent/main/install.sh | bash
+```
+
+Untuk memilih Coding Plan langsung:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MADE-ADI/usage4agent/main/install.sh | bash -s -- --version v2
+```
+
+Installer mengunduh arsip GitHub ke folder sementara, menjalankan setup, lalu membersihkan folder unduhan saat selesai atau gagal. Git tidak diperlukan. Prompt API key tetap tersedia saat dijalankan melalui pipe pada terminal interaktif.
+
+Untuk instalasi otomatis tanpa prompt:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MADE-ADI/usage4agent/main/install.sh | bash -s -- --no-input --version v2
+```
+
+Pada lingkungan tanpa terminal interaktif, installer otomatis melewati prompt. Gunakan environment `SEKAIGATEWAY_API_KEY` bila ingin mengisi key tanpa prompt. Variabel tersebut harus tersedia pada proses `bash`, misalnya melalui `export` sebelum menjalankan pipeline.
+
+Perintah di atas memerlukan repo publik `MADE-ADI/usage4agent` dengan file installer pada branch `main`. Jika memakai fork atau versi tertentu, sesuaikan URL script serta environment `MYTOKEN_REPOSITORY` dan `MYTOKEN_REF` pada proses `bash` dengan owner/repo serta branch, tag, atau commit yang sama.
+
+## Instalasi dari repo lokal
+
+Jika sudah clone atau download repo, jalankan:
+
+```bash
+npm run setup
+```
+
+Alternatif di Bash:
+
+```bash
+bash install.sh
+```
+
+Installer akan memasang dependency, membangun plugin, meminta API key dengan input tersembunyi, dan menawarkan endpoint default `v1` atau `v2`. Tekan Enter untuk mempertahankan key yang sudah tersedia atau melewati pengisian key. Setelah selesai, mulai ulang OpenCode dan jalankan `/mytoken`.
+
+Installer mengerjakan konfigurasi secara otomatis:
+
+- Menyalin plugin ke `~/.local/share/opencode-mytoken/plugin`, sehingga folder repo boleh dipindahkan atau dihapus setelah instalasi.
+- Menambahkan plugin ke `~/.config/opencode/cli.json` tanpa menghapus pengaturan atau plugin lain.
+- Membuat backup `cli.json.mytoken-backup-*` sebelum mengubah konfigurasi yang sudah ada. JSON yang tidak valid tidak ditimpa.
+- Menyimpan API key dan endpoint default di `~/.config/opencode/mytoken.json` dengan izin file `600` pada Linux/macOS. API key disimpan sebagai teks biasa dalam file lokal tersebut; tidak dimasukkan ke `cli.json` atau repo.
+- Mempertahankan key yang tersimpan saat instalasi diulang. Jalankan installer kembali untuk memperbarui plugin atau mengganti key.
+
+`XDG_CONFIG_HOME` dan `XDG_DATA_HOME` didukung untuk mengubah lokasi konfigurasi dan instalasi. Installer tidak memerlukan `sudo` dan tidak mengubah konfigurasi shell. Installer memerlukan koneksi internet untuk memasang dependency npm.
+
+Untuk memilih Coding Plan langsung:
+
+```bash
+npm run setup -- --version v2
+```
+
+Untuk instalasi tanpa prompt:
+
+```bash
+npm run setup -- --no-input --version v2
+```
+
+Jika `SEKAIGATEWAY_API_KEY` tersedia di environment, installer menyimpannya tanpa menampilkan nilainya. Jika tidak ada key baru, key lama tetap digunakan. Tanpa key baru atau key lama, instalasi tetap selesai dan menampilkan petunjuk pengisian key. Gunakan `bash install.sh --help` untuk melihat opsi.
+
+Plugin ini khusus TUI. OpenCode Desktop, `opencode mini`, `opencode run`, dan OpenCode v1 tidak didukung.
+
+## API key melalui environment
+
+Environment tetap bisa digunakan untuk menggantikan key yang disimpan installer. Contoh Bash berikut tidak menaruh nilai key dalam riwayat perintah:
+
+```bash
+read -rsp 'Sekai Gateway API key: ' SEKAIGATEWAY_API_KEY
+printf '\n'
+export SEKAIGATEWAY_API_KEY
+opencode
+```
+
+Key dari environment proses TUI mengalahkan key dalam `mytoken.json`. Argumen command mengalahkan endpoint dari environment, lalu endpoint dalam `mytoken.json`, lalu default `v1`. File lokal dibaca setiap kali `/mytoken` dijalankan. File `.env` tidak dibaca otomatis.
+
+Saat terhubung ke server OpenCode jarak jauh, key dan konfigurasi tetap dibaca dari komputer tempat TUI berjalan. Request juga dikirim dari komputer tersebut.
+
+## Penggunaan
+
+```text
+/mytoken
+/mytoken v1
+/mytoken v2
+```
+
+| Command | Endpoint | Paket |
+| --- | --- | --- |
+| `/mytoken` | `/v1/usage` secara default | Pay as you go dan paket token biasa |
+| `/mytoken v1` | `/v1/usage` | Pay as you go dan paket token biasa |
+| `/mytoken v2` | `/v2/usage` | Coding Plan |
+
+Untuk memakai v2 sebagai default, set sebelum menjalankan OpenCode:
+
+```bash
+export SEKAIGATEWAY_USAGE_VERSION=v2
+opencode
+```
+
+Argumen eksplisit `v1` atau `v2` mengalahkan default tersebut. Kedua endpoint mengembalikan struktur respons yang sama. Dialog menampilkan bagian PAYG dan Coding Plan yang tersedia dalam respons, apa pun endpoint yang dipilih.
+
+Dialog menampilkan daftar bagian yang bisa dicari dan digulir. Pilih bagian lalu tekan Enter untuk membaca detail lengkap. Tutup detail untuk kembali ke daftar, atau tekan Escape pada daftar untuk keluar.
+
+Informasi yang ditampilkan:
+
+- Nama dan status key, tanpa nilai API key.
+- Saldo tersedia, saldo PAYG, biaya terpakai, dan token PAYG terpakai.
+- Paket Coding Plan, total token terpakai, jumlah request, dan waktu berakhir.
+- Budget pool serta penggunaan, sisa, persentase, dan waktu reset untuk batas 5 jam, mingguan, dan bulanan.
+- Waktu pembaruan data.
+
+Saldo dan budget memakai mata uang respons, misalnya `IDR`. Nilai tersebut **bukan jumlah token**. Token ditampilkan terpisah. Angka memakai format Indonesia; waktu mengikuti zona waktu komputer. Nilai yang tidak tersedia ditampilkan sebagai `—`, bukan nol. Plugin tidak menghitung sisa token dari saldo uang.
+
+Request yang dikirim:
+
+```http
+GET https://api.sekaigateway.xyz/v1/usage
+Authorization: Bearer <SEKAIGATEWAY_API_KEY>
+Accept: application/json
+```
+
+Timeout request adalah 15 detik. Error autentikasi, rate limit, koneksi, dan respons tidak valid ditampilkan lewat notifikasi. Plugin tidak mengikuti redirect dan tidak menampilkan body error dari server.
+
+## Pengembangan dan distribusi
+
+```bash
+npm run check
+npm test
+npm pack --dry-run
+```
+
+`npm test` memakai server HTTP lokal, data contoh, dan folder instalasi sementara, sehingga tidak memerlukan API key atau memanggil Sekai Gateway. Tes installer memeriksa konfigurasi lama, backup, instalasi berulang, izin file key, dan kegagalan instalasi. `npm pack` membangun plugin melalui `prepack`; paket berisi `dist/`, `README.md`, dan metadata npm.
+
+Setelah mengubah source, jalankan kembali `npm run setup` dan mulai ulang TUI untuk menggunakan versi yang baru.
+
+Repo ini belum dipublikasikan ke npm. Nama `opencode-mytoken` di `package.json` adalah nama paket yang disiapkan untuk distribusi.
+
+## Referensi
+
+- [OpenCode v2: TUI plugins](https://opencode.ai/v2/docs/build/plugins/cli)
+- [OpenCode v2: CLI settings](https://opencode.ai/v2/docs/cli/config)
