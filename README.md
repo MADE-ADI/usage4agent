@@ -25,6 +25,19 @@ curl -fsSL https://raw.githubusercontent.com/MADE-ADI/usage4agent/main/install.s
 
 Installer mengunduh arsip GitHub ke folder sementara, menjalankan setup, lalu membersihkan folder unduhan saat selesai atau gagal. Git tidak diperlukan. Prompt API key tetap tersedia saat dijalankan melalui pipe pada terminal interaktif.
 
+Tampilan terminal menampilkan header Sekai Gateway, progres enam tahap, spinner, waktu tiap tahap, dan ringkasan hasil. Output npm disembunyikan selama proses berhasil; jika gagal, bagian log yang relevan ditampilkan dengan key disamarkan. Warna dan animasi dimatikan untuk output noninteraktif, `TERM=dumb`, atau `NO_COLOR`.
+
+Sebelum mengubah plugin atau konfigurasi OpenCode, installer wajib menyelesaikan tahap berikut:
+
+1. Memasang dependency yang diperlukan.
+2. Membangun plugin.
+3. Menjalankan pemeriksaan TypeScript dan seluruh tes otomatis.
+4. Membaca pilihan endpoint dan API key.
+5. Menguji key melalui `GET /v1/usage` atau `GET /v2/usage`, sesuai pilihan. Respons harus berhasil, berbentuk usage yang valid, dan tidak menyatakan key nonaktif.
+6. Menerapkan plugin serta konfigurasi, setelah pemeriksaan dan validasi lulus.
+
+Jika tes, validasi key, atau request API gagal, plugin dan konfigurasi yang sedang digunakan tidak diubah. Timeout validasi API adalah 15 detik. API key wajib tersedia; installer tidak menyediakan opsi untuk melewati validasi.
+
 Untuk instalasi otomatis tanpa prompt:
 
 ```bash
@@ -49,7 +62,7 @@ Alternatif di Bash:
 bash install.sh
 ```
 
-Installer akan memasang dependency, membangun plugin, meminta API key dengan input tersembunyi, dan menawarkan endpoint default `v1` atau `v2`. Tekan Enter untuk mempertahankan key yang sudah tersedia atau melewati pengisian key. Setelah selesai, mulai ulang OpenCode dan jalankan `/mytoken`.
+Installer akan memasang dependency, membangun dan menguji plugin, menawarkan endpoint default `v1` atau `v2`, lalu meminta API key dengan input tersembunyi. Tekan Enter untuk mempertahankan key yang sudah tersedia. Jika belum ada key, isikan key agar validasi bisa berjalan. Setelah seluruh pemeriksaan berhasil, mulai ulang OpenCode dan jalankan `/mytoken`.
 
 Installer mengerjakan konfigurasi secara otomatis:
 
@@ -73,7 +86,7 @@ Untuk instalasi tanpa prompt:
 npm run setup -- --no-input --version v2
 ```
 
-Jika `SEKAIGATEWAY_API_KEY` tersedia di environment, installer menyimpannya tanpa menampilkan nilainya. Jika tidak ada key baru, key lama tetap digunakan. Tanpa key baru atau key lama, instalasi tetap selesai dan menampilkan petunjuk pengisian key. Gunakan `bash install.sh --help` untuk melihat opsi.
+Jika `SEKAIGATEWAY_API_KEY` tersedia di environment, installer menguji dan menyimpannya tanpa menampilkan nilainya. Jika tidak ada key baru, key lama tetap digunakan dan diuji kembali. Tanpa key baru atau key lama, installer berhenti sebelum menerapkan perubahan. Gunakan `bash install.sh --help` untuk melihat opsi.
 
 Plugin ini khusus TUI. OpenCode Desktop, `opencode mini`, `opencode run`, dan OpenCode v1 tidak didukung.
 
@@ -145,7 +158,9 @@ npm test
 npm pack --dry-run
 ```
 
-`npm test` memakai server HTTP lokal, data contoh, dan folder instalasi sementara, sehingga tidak memerlukan API key atau memanggil Sekai Gateway. Tes installer memeriksa konfigurasi lama, backup, instalasi berulang, izin file key, dan kegagalan instalasi. `npm pack` membangun plugin melalui `prepack`; paket berisi `dist/`, `README.md`, dan metadata npm.
+`npm test` memakai server HTTP lokal, data contoh, dan folder instalasi sementara, sehingga tidak memerlukan API key atau memanggil Sekai Gateway. Tes installer memeriksa konfigurasi lama, backup, instalasi berulang, izin file key, serta kegagalan build, tes, dan validasi API. Tes tampilan memeriksa output tanpa warna dan penyamaran key pada pesan error. `npm pack` membangun plugin melalui `prepack`; paket berisi `dist/`, `README.md`, dan metadata npm.
+
+Saat `npm run setup` dijalankan, tes otomatis tersebut dijalankan lebih dahulu. Setelah tes lulus, installer melakukan satu request usage nyata untuk memvalidasi key pengguna sebelum menerapkan perubahan.
 
 Setelah mengubah source, jalankan kembali `npm run setup` dan mulai ulang TUI untuk menggunakan versi yang baru.
 

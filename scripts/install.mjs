@@ -4,9 +4,10 @@ import { constants } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
+import { createUI } from "./ui.mjs";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
 
@@ -133,51 +134,81 @@ async function question(prompt, { secret = false } = {}) {
   }
 }
 
-function build() {
+function runNpm(args) {
   const npmArgs = process.env.npm_execpath ? [process.env.npm_execpath] : [];
   const command = npmArgs.length ? process.execPath : process.platform === "win32" ? "npm.cmd" : "npm";
-  for (const args of [["ci", "--include=dev", "--no-audit", "--no-fund"], ["run", "build"]]) {
-    const result = spawnSync(command, [...npmArgs, ...args], {
+  return new Promise((done, reject) => {
+    const child = spawn(command, [...npmArgs, ...args], {
       cwd: repo,
-      stdio: "inherit",
+      stdio: ["ignore", "pipe", "pipe"],
       shell: process.platform === "win32" && !npmArgs.length,
     });
-    if (result.error || result.status !== 0) {
-      throw new Error(`npm ${args[0]} gagal. Pastikan npm tersedia dan koneksi internet berfungsi.`);
-    }
-  }
+    let details = "";
+    const collect = (chunk) => { details = (details + chunk.toString()).slice(-32_000); };
+    child.stdout.on("data", collect);
+    child.stderr.on("data", collect);
+    child.on("error", () => reject(new Error("Tidak dapat menjalankan npm. Pastikan npm tersedia.")));
+    child.on("close", (status, signal) => {
+      if (status === 0) return done();
+      const error = new Error(`npm ${args.join(" ")} gagal${signal ? ` (${signal})` : ""}. Plugin belum diterapkan.`);
+      error.details = details;
+      reject(error);
+    });
+  });
 }
 
-async function main() {
+async function main(ui) {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Instal /mytoken: npm run setup -- [--no-input] [--version v1|v2]\nAlternatif: bash install.sh [--no-input] [--version v1|v2]\nAPI key dari prompt atau SEKAIGATEWAY_API_KEY disimpan di mytoken.json (izin 600).");
+    console.log("Instal /mytoken: npm run setup -- [--no-input] [--version v1|v2]\nAlternatif: bash install.sh [--no-input] [--version v1|v2]\nInstaller menjalankan pemeriksaan, tes, dan validasi API key sebelum menerapkan plugin.\nAPI key wajib tersedia dari prompt, SEKAIGATEWAY_API_KEY, atau pengaturan tersimpan (izin 600).");
     return;
   }
   if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Node.js 22+ diperlukan.");
-  console.log("Membangun dan memasang plugin /mytoken…");
-  build();
+  ui.addSecret(process.env.SEKAIGATEWAY_API_KEY);
+  ui.header();
+  await ui.step(1, "Menyiapkan dependency", () => runNpm(["ci", "--include=dev", "--no-audit", "--no-fund"]));
+  await ui.step(2, "Membangun plugin", () => runNpm(["run", "build"]));
+  await ui.step(3, "Menguji plugin", async () => {
+    await runNpm(["run", "check"]);
+    await runNpm(["test"]);
+  });
   const { readSettings } = await import("../dist/config.js");
   const saved = await readSettings();
-  let apiKey;
+  ui.addSecret(saved.apiKey);
+  let apiKey = process.env.SEKAIGATEWAY_API_KEY?.trim() || saved.apiKey?.trim();
   let version = options.version || process.env.SEKAIGATEWAY_USAGE_VERSION || saved.version || "v1";
+  ui.section(4, "Konfigurasi akun");
   if (!options.noInput && process.stdin.isTTY && process.stdout.isTTY) {
-    const hasKey = Boolean(process.env.SEKAIGATEWAY_API_KEY?.trim() || saved.apiKey?.trim());
-    apiKey = await question(`API key Sekai Gateway (input tersembunyi; Enter untuk ${hasKey ? "memakai key yang tersedia" : "melewati"}): `, { secret: true });
-    if (!options.version) version = (await question(`Endpoint default [v1/v2] (${version}): `)).trim() || version;
+    ui.note("v1: PAYG / paket token   ·   v2: Coding Plan");
+    if (!options.version) {
+      do {
+        version = (await question(`        Endpoint default [v1/v2] (${version}): `)).trim() || version;
+        if (!["v1", "v2"].includes(version)) ui.note("Pilih v1 atau v2.");
+      } while (!["v1", "v2"].includes(version));
+    }
+    const entered = await question(`        API key (${apiKey ? "Enter: gunakan key yang tersedia" : "wajib diisi"}; input tersembunyi): `, { secret: true });
+    apiKey = entered.trim() || apiKey;
   }
-  const result = await installPlugin({ apiKey, version });
-  console.log(`\n/mytoken terpasang: ${result.plugin}\nKonfigurasi OpenCode: ${result.cli}\nPengaturan lokal: ${result.settings}\nEndpoint default: ${result.version}`);
-  if (result.backup) console.log(`Backup konfigurasi: ${result.backup}`);
-  if (!result.hasKey) console.log("API key belum diisi. Jalankan installer kembali atau set SEKAIGATEWAY_API_KEY.");
-  console.log("Mulai ulang OpenCode, lalu jalankan /mytoken.");
+  ui.addSecret(apiKey);
+  if (!apiKey) throw new Error("API key wajib diisi untuk validasi. Jalankan installer kembali atau set SEKAIGATEWAY_API_KEY. Plugin belum diterapkan.");
+  const { fetchUsage, parseVersion } = await import("../dist/usage.js");
+  const selectedVersion = parseVersion(version);
+  ui.note(`Endpoint ${selectedVersion} dipilih. Key akan diuji tanpa menampilkan nilainya.`);
+  await ui.step(5, `Memvalidasi API key · /${selectedVersion}/usage`, async () => {
+    const usage = await fetchUsage({ apiKey, version: selectedVersion });
+    if (usage.key?.status !== undefined && usage.key.status !== "active") {
+      throw new Error("API key tidak aktif. Plugin belum diterapkan.");
+    }
+  });
+  const result = await ui.step(6, "Menerapkan plugin dan konfigurasi", () => installPlugin({ apiKey, version: selectedVersion }));
+  ui.success(result);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().catch((error) => {
+  const ui = createUI();
+  main(ui).catch((error) => {
     // File-system and child-process exceptions may contain sensitive values.
-    console.error(error.name === "AbortError" ? "Instalasi dibatalkan." :
-      error.code ? `Instalasi gagal (${error.code}). Periksa izin file dan jalankan kembali.` : error.message);
+    ui.error(error);
     process.exitCode = 1;
   });
 }
