@@ -110,15 +110,14 @@ Saat terhubung ke server OpenCode jarak jauh, key dan konfigurasi tetap dibaca d
 Setelah instalasi, mulai ulang OpenCode. Ringkasan langsung tampil dan diperbarui setiap **60 detik**, serta setelah respons selesai atau gagal. Event yang berdekatan digabungkan dengan jeda minimal **5 detik** agar request tidak menumpuk. Pembaruan antar-panel memakai satu monitor bersama.
 
 - Endpoint v1 menampilkan saldo uang dan token PAYG terpakai.
-- Endpoint v2 menampilkan nama Coding Plan, token terpakai, saldo uang, serta persentase batas 5 jam, mingguan, dan bulanan.
+- Endpoint v2 menampilkan satu baris ringkas berisi nama Coding Plan dan persentase penggunaan 5 jam, mingguan, serta bulanan.
 - Ketika request gagal, data terakhir tetap terlihat dengan penanda pembaruan gagal. Jika belum pernah berhasil, panel menampilkan pesan error.
 - Pembaruan otomatis tidak membuka dialog atau notifikasi. Request dan timer dihentikan saat plugin dinonaktifkan atau dimuat ulang.
 
 Contoh tampilan untuk Coding Plan:
 
 ```text
-Sekai v2 · cp30 · Token 9.571 · Saldo IDR 10.000
-Batas terpakai: 5 jam 0,04% · Minggu 0,01% · Bulan 0%
+cp30 · 5 jam 0% · Minggu 0,02% · Bulan 0,01%
 ```
 
 Untuk detail lengkap, command lama tetap tersedia:

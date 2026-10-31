@@ -139,20 +139,17 @@ test("report distinguishes tokens from currency and renders all coding windows",
   assert.doesNotMatch(report, /undefined|NaN|Invalid Date/);
 });
 
-test("inline Coding Plan summary shows tokens, monetary balance, and all three limit windows", () => {
+test("inline Coding Plan summary contains only the plan and usage windows on one line", () => {
   const text = formatSummary(example, "v2");
-  assert.match(text, /Sekai v2 · cp30 · Token 9\.571 · Saldo IDR 10\.000/);
-  assert.match(text, /5 jam 0,04% · Minggu 100% · Bulan 0%/);
-  assert.equal(text.split("\n").length, 2);
-  assert.doesNotMatch(text, /undefined|NaN/);
+  assert.equal(text, "cp30 · 5 jam 0,04% · Minggu 100% · Bulan 0%");
+  assert.equal(text.split("\n").length, 1);
 });
 
 test("inline v1 summary uses PAYG tokens and does not infer tokens from balance", () => {
   assert.equal(formatSummary(example, "v1"), "Sekai v1 · Saldo IDR 10.000 · Token PAYG 0");
   assert.equal(formatSummary({ object: "usage" }, "v1"), "Sekai v1 · Saldo — · Token PAYG —");
   const inactive = formatSummary({ codingPlan: { active: false }, balance: { available: 0 } }, "v2");
-  assert.match(inactive, /Coding Plan · nonaktif/);
-  assert.match(inactive, /Token — · Saldo IDR 0/);
+  assert.equal(inactive, "Coding Plan · nonaktif · Usage belum tersedia");
 });
 
 test("external cancellation aborts usage requests without reporting a timeout", async (t) => {

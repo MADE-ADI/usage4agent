@@ -140,23 +140,20 @@ export function formatSummary(data: RecordValue, version: UsageVersion): string 
   const count = (value: unknown) => number(value) ? decimal.format(value) : "—";
   const clean = (value: unknown) => typeof value === "string"
     ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ") : "";
-  const currency = clean(data.currency) || "IDR";
-  const balance = record(data.balance);
-  const money = number(balance.available) ? `${currency} ${count(balance.available)}` : "—";
   if (version === "v1") {
+    const currency = clean(data.currency) || "IDR";
+    const balance = record(data.balance);
+    const money = number(balance.available) ? `${currency} ${count(balance.available)}` : "—";
     return `Sekai v1 · Saldo ${money} · Token PAYG ${count(record(data.payg).tokensUsed)}`;
   }
   const plan = record(data.codingPlan);
-  const usage = record(plan.usage);
   const name = clean(plan.plan) || "Coding Plan";
   const status = plan.active === false ? " · nonaktif" : "";
-  const lines = [`Sekai v2 · ${name}${status} · Token ${count(usage.tokens)} · Saldo ${money}`];
   const windows = record(record(plan.pool).windows);
   const limits = [["fiveHour", "5 jam"], ["week", "Minggu"], ["month", "Bulan"]]
     .filter(([key]) => Object.keys(record(windows[key])).length > 0)
     .map(([key, label]) => `${label} ${count(record(windows[key]).usedPercent)}%`);
-  if (limits.length) lines.push(`Batas terpakai: ${limits.join(" · ")}`);
-  return lines.join("\n");
+  return `${name}${status} · ${limits.length ? limits.join(" · ") : "Usage belum tersedia"}`;
 }
 
 export async function usageSnapshot(input?: string, env = process.env, signal?: AbortSignal): Promise<UsageSnapshot> {
