@@ -1,6 +1,11 @@
 import { readSettings } from "./config.js";
 
 export type UsageVersion = "v1" | "v2";
+export interface UsageSnapshot {
+  version: UsageVersion;
+  report: string;
+  summary: string;
+}
 type RecordValue = Record<string, unknown>;
 
 export class UsageError extends Error {}
@@ -28,11 +33,13 @@ export async function fetchUsage({
   version,
   fetcher = fetch,
   timeoutMs = 15_000,
+  signal: cancellation,
 }: {
   apiKey: string | undefined;
   version: UsageVersion;
   fetcher?: typeof fetch;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }): Promise<RecordValue> {
   const key = apiKey?.trim();
   if (!key) {
@@ -40,7 +47,8 @@ export async function fetchUsage({
   }
   // Validate at the request boundary as well; never interpolate arbitrary paths.
   parseVersion(version);
-  const signal = AbortSignal.timeout(timeoutMs);
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = cancellation ? AbortSignal.any([timeout, cancellation]) : timeout;
   try {
     const response = await fetcher(`https://api.sekaigateway.xyz/${version}/usage`, {
       method: "GET",
@@ -71,6 +79,7 @@ export async function fetchUsage({
     return usage;
   } catch (error) {
     if (error instanceof UsageError) throw error;
+    if (cancellation?.aborted) throw new UsageError("Request usage dibatalkan.");
     if (signal.aborted) {
       throw new UsageError(`Request Sekai Gateway melewati batas ${timeoutMs / 1000} detik.`);
     }
@@ -126,7 +135,31 @@ export function formatUsage(data: RecordValue, version: UsageVersion): string {
   return lines.join("\n");
 }
 
-export async function usageReport(input?: string, env = process.env): Promise<string> {
+export function formatSummary(data: RecordValue, version: UsageVersion): string {
+  const decimal = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 3 });
+  const count = (value: unknown) => number(value) ? decimal.format(value) : "—";
+  const clean = (value: unknown) => typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ") : "";
+  const currency = clean(data.currency) || "IDR";
+  const balance = record(data.balance);
+  const money = number(balance.available) ? `${currency} ${count(balance.available)}` : "—";
+  if (version === "v1") {
+    return `Sekai v1 · Saldo ${money} · Token PAYG ${count(record(data.payg).tokensUsed)}`;
+  }
+  const plan = record(data.codingPlan);
+  const usage = record(plan.usage);
+  const name = clean(plan.plan) || "Coding Plan";
+  const status = plan.active === false ? " · nonaktif" : "";
+  const lines = [`Sekai v2 · ${name}${status} · Token ${count(usage.tokens)} · Saldo ${money}`];
+  const windows = record(record(plan.pool).windows);
+  const limits = [["fiveHour", "5 jam"], ["week", "Minggu"], ["month", "Bulan"]]
+    .filter(([key]) => Object.keys(record(windows[key])).length > 0)
+    .map(([key, label]) => `${label} ${count(record(windows[key]).usedPercent)}%`);
+  if (limits.length) lines.push(`Batas terpakai: ${limits.join(" · ")}`);
+  return lines.join("\n");
+}
+
+export async function usageSnapshot(input?: string, env = process.env, signal?: AbortSignal): Promise<UsageSnapshot> {
   let settings: Awaited<ReturnType<typeof readSettings>>;
   try {
     settings = await readSettings(env);
@@ -135,7 +168,15 @@ export async function usageReport(input?: string, env = process.env): Promise<st
   }
   const version = parseVersion(input, env.SEKAIGATEWAY_USAGE_VERSION || settings.version || "v1");
   const apiKey = env.SEKAIGATEWAY_API_KEY?.trim() || settings.apiKey;
-  const data = await fetchUsage({ apiKey, version });
-  const report = formatUsage(data, version);
-  return apiKey?.trim() ? report.replaceAll(apiKey.trim(), "[REDACTED]") : report;
+  const data = await fetchUsage({ apiKey, version, signal });
+  const redact = (text: string) => apiKey?.trim() ? text.replaceAll(apiKey.trim(), "[REDACTED]") : text;
+  return {
+    version,
+    report: redact(formatUsage(data, version)),
+    summary: redact(formatSummary(data, version)),
+  };
+}
+
+export async function usageReport(input?: string, env = process.env): Promise<string> {
+  return (await usageSnapshot(input, env)).report;
 }

@@ -1,6 +1,6 @@
 # opencode-mytoken
 
-Plugin TUI untuk mengecek penggunaan Sekai Gateway melalui `/mytoken` di OpenCode v2. Hasil ditampilkan langsung dalam dialog tanpa memanggil model AI atau menambah pesan ke percakapan.
+Plugin TUI untuk menampilkan penggunaan Sekai Gateway langsung di OpenCode v2. Ringkasan otomatis muncul pada halaman awal dan di atas kolom input percakapan, tanpa mengetik `/mytoken`. Plugin tidak memanggil model AI atau menambah pesan ke percakapan.
 
 ## Kebutuhan
 
@@ -101,11 +101,27 @@ export SEKAIGATEWAY_API_KEY
 opencode
 ```
 
-Key dari environment proses TUI mengalahkan key dalam `mytoken.json`. Argumen command mengalahkan endpoint dari environment, lalu endpoint dalam `mytoken.json`, lalu default `v1`. File lokal dibaca setiap kali `/mytoken` dijalankan. File `.env` tidak dibaca otomatis.
+Key dari environment proses TUI mengalahkan key dalam `mytoken.json`. Argumen command mengalahkan endpoint dari environment, lalu endpoint dalam `mytoken.json`, lalu default `v1`. File lokal dibaca ulang pada setiap pembaruan otomatis dan setiap `/mytoken` dijalankan. Argumen command tidak mengubah endpoint panel otomatis. File `.env` tidak dibaca otomatis.
 
 Saat terhubung ke server OpenCode jarak jauh, key dan konfigurasi tetap dibaca dari komputer tempat TUI berjalan. Request juga dikirim dari komputer tersebut.
 
 ## Penggunaan
+
+Setelah instalasi, mulai ulang OpenCode. Ringkasan langsung tampil dan diperbarui setiap **60 detik**, serta setelah respons selesai atau gagal. Event yang berdekatan digabungkan dengan jeda minimal **5 detik** agar request tidak menumpuk. Pembaruan antar-panel memakai satu monitor bersama.
+
+- Endpoint v1 menampilkan saldo uang dan token PAYG terpakai.
+- Endpoint v2 menampilkan nama Coding Plan, token terpakai, saldo uang, serta persentase batas 5 jam, mingguan, dan bulanan.
+- Ketika request gagal, data terakhir tetap terlihat dengan penanda pembaruan gagal. Jika belum pernah berhasil, panel menampilkan pesan error.
+- Pembaruan otomatis tidak membuka dialog atau notifikasi. Request dan timer dihentikan saat plugin dinonaktifkan atau dimuat ulang.
+
+Contoh tampilan untuk Coding Plan:
+
+```text
+Sekai v2 · cp30 · Token 9.571 · Saldo IDR 10.000
+Batas terpakai: 5 jam 0,04% · Minggu 0,01% · Bulan 0%
+```
+
+Untuk detail lengkap, command lama tetap tersedia:
 
 ```text
 /mytoken
@@ -158,7 +174,7 @@ npm test
 npm pack --dry-run
 ```
 
-`npm test` memakai server HTTP lokal, data contoh, dan folder instalasi sementara, sehingga tidak memerlukan API key atau memanggil Sekai Gateway. Tes installer memeriksa konfigurasi lama, backup, instalasi berulang, izin file key, serta kegagalan build, tes, dan validasi API. Tes tampilan memeriksa output tanpa warna dan penyamaran key pada pesan error. `npm pack` membangun plugin melalui `prepack`; paket berisi `dist/`, `README.md`, dan metadata npm.
+`npm test` memakai server HTTP lokal, data contoh, dan folder instalasi sementara, sehingga tidak memerlukan API key atau memanggil Sekai Gateway. Tes installer memeriksa konfigurasi lama, backup, instalasi berulang, izin file key, serta kegagalan build, tes, dan validasi API. Tes tampilan memeriksa output tanpa warna dan penyamaran key pada pesan error. Tes monitor memeriksa pembaruan otomatis, penggabungan event, request yang bersamaan, penyimpanan data terakhir saat gagal, dan pembatalan request saat plugin ditutup. `npm pack` membangun plugin melalui `prepack`; paket berisi `dist/`, `README.md`, dan metadata npm.
 
 Saat `npm run setup` dijalankan, tes otomatis tersebut dijalankan lebih dahulu. Setelah tes lulus, installer melakukan satu request usage nyata untuk memvalidasi key pengguna sebelum menerapkan perubahan.
 

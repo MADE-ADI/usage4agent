@@ -6,7 +6,10 @@
   "exports": {
     "./tui": "./dist/tui.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -20,8 +23,16 @@
   "dependencies": {
     "@opencode/plugin": "2.2.5"
   },
+  "peerDependencies": {
+    "@opentui/core": ">=0.8.0",
+    "@opentui/solid": ">=0.8.0",
+    "solid-js": ">=1.9.12"
+  },
   "devDependencies": {
+    "@opentui/core": "0.8.0",
+    "@opentui/solid": "0.8.0",
     "@types/node": "^22.0.0",
+    "solid-js": "1.9.18",
     "typescript": "~5.9.3"
   }
 }

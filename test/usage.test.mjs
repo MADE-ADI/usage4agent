@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchUsage, formatUsage, parseVersion, usageReport } from "../dist/usage.js";
+import { fetchUsage, formatUsage, formatSummary, parseVersion, usageReport, usageSnapshot } from "../dist/usage.js";
 
 const example = {
   object: "usage",
@@ -139,6 +139,30 @@ test("report distinguishes tokens from currency and renders all coding windows",
   assert.doesNotMatch(report, /undefined|NaN|Invalid Date/);
 });
 
+test("inline Coding Plan summary shows tokens, monetary balance, and all three limit windows", () => {
+  const text = formatSummary(example, "v2");
+  assert.match(text, /Sekai v2 · cp30 · Token 9\.571 · Saldo IDR 10\.000/);
+  assert.match(text, /5 jam 0,04% · Minggu 100% · Bulan 0%/);
+  assert.equal(text.split("\n").length, 2);
+  assert.doesNotMatch(text, /undefined|NaN/);
+});
+
+test("inline v1 summary uses PAYG tokens and does not infer tokens from balance", () => {
+  assert.equal(formatSummary(example, "v1"), "Sekai v1 · Saldo IDR 10.000 · Token PAYG 0");
+  assert.equal(formatSummary({ object: "usage" }, "v1"), "Sekai v1 · Saldo — · Token PAYG —");
+  const inactive = formatSummary({ codingPlan: { active: false }, balance: { available: 0 } }, "v2");
+  assert.match(inactive, /Coding Plan · nonaktif/);
+  assert.match(inactive, /Token — · Saldo IDR 0/);
+});
+
+test("external cancellation aborts usage requests without reporting a timeout", async (t) => {
+  const controller = new AbortController();
+  const fetcher = await localGateway(t, (_request, response) => { response.writeHead(200); response.write("{"); });
+  const pending = fetchUsage({ apiKey: "test-secret", version: "v2", fetcher, signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, /Request usage dibatalkan/);
+});
+
 test("PAYG-only data does not invent a coding plan or missing usage totals", () => {
   const report = formatUsage({ object: "usage", payg: { active: true, balance: 0 } }, "v1");
   assert.match(report, /PAYG: aktif/);
@@ -156,10 +180,13 @@ test("end-to-end report applies environment defaults and redacts an echoed key",
   globalThis.fetch = async (url, options) => {
     paths.push(new URL(url).pathname);
     assert.equal(options.headers.Authorization, "Bearer test-secret");
-    return Response.json({ ...example, key: { name: "test-secret", status: "active" } });
+    return Response.json({ ...example, key: { name: "test-secret", status: "active" }, codingPlan: { ...example.codingPlan, plan: "test-secret" } });
   };
   const env = { XDG_CONFIG_HOME: config, SEKAIGATEWAY_API_KEY: "test-secret", SEKAIGATEWAY_USAGE_VERSION: "v2" };
   assert.match(await usageReport(undefined, env), /Key: \[REDACTED\]/);
   assert.doesNotMatch(await usageReport("v1", env), /test-secret/);
-  assert.deepEqual(paths, ["/v2/usage", "/v1/usage"]);
+  const current = await usageSnapshot(undefined, env);
+  assert.match(current.summary, /\[REDACTED\]/);
+  assert.doesNotMatch(current.summary, /test-secret/);
+  assert.deepEqual(paths, ["/v2/usage", "/v1/usage", "/v2/usage"]);
 });
