@@ -117,8 +117,10 @@ Setelah instalasi, mulai ulang OpenCode. Ringkasan langsung tampil dan diperbaru
 Contoh tampilan untuk Coding Plan:
 
 ```text
-cp30 · 5 jam 0% · Minggu 0,02% · Bulan 0,01%
+Coding Plan Pro · 5 jam 0% · Minggu 0,02% · Bulan 0,01%
 ```
+
+Nama paket mengikuti [halaman Coding Plan Sekai Gateway](https://sekaigateway.xyz/id/coding): `cp7` menjadi Basic, `cp30` menjadi Pro, `cpmax` menjadi MAX, dan `cpultra` menjadi Ultra. Paket yang belum dikenal tetap memakai nama dari API.
 
 Untuk detail lengkap, command lama tetap tersedia:
 

@@ -131,7 +131,7 @@ test("report distinguishes tokens from currency and renders all coding windows",
   const report = formatUsage(example, "v2");
   for (const expected of [
     "Sekai Gateway · v2", "Saldo tersedia: IDR 10.000", "PAYG: nonaktif",
-    "Coding Plan: cp30 (active)", "Token terpakai: 9.571 · Request: 2",
+    "Coding Plan Pro (active)", "Token terpakai: 9.571 · Request: 2",
     "Budget pool: IDR 3.230.000", "5 jam: 0,04% terpakai",
     "Terpakai: IDR 111,974 / IDR 290.700", "Sisa: IDR 290.588,026",
     "Mingguan: 100% terpakai · BATAS TERCAPAI", "Bulanan: 0% terpakai",
@@ -141,8 +141,22 @@ test("report distinguishes tokens from currency and renders all coding windows",
 
 test("inline Coding Plan summary contains only the plan and usage windows on one line", () => {
   const text = formatSummary(example, "v2");
-  assert.equal(text, "cp30 · 5 jam 0,04% · Minggu 100% · Bulan 0%");
+  assert.equal(text, "Coding Plan Pro · 5 jam 0,04% · Minggu 100% · Bulan 0%");
   assert.equal(text.split("\n").length, 1);
+});
+
+test("product names match official Coding Plans without labeling every tier as Pro", () => {
+  for (const [code, name] of [
+    ["cp7", "Coding Plan Basic"],
+    ["cp30", "Coding Plan Pro"],
+    ["cpmax", "Coding Plan MAX"],
+    ["cpultra", "Coding Plan Ultra"],
+    ["future-plan", "future-plan"],
+  ]) {
+    const data = { object: "usage", codingPlan: { plan: code, active: true } };
+    assert.equal(formatSummary(data, "v2"), `${name} · Usage belum tersedia`);
+    assert.ok(formatUsage(data, "v2").includes(`${name} (aktif)`));
+  }
 });
 
 test("inline v1 summary uses PAYG tokens and does not infer tokens from balance", () => {

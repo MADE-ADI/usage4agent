@@ -10,6 +10,18 @@ type RecordValue = Record<string, unknown>;
 
 export class UsageError extends Error {}
 
+function codingPlanName(value: unknown): string {
+  const code = typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ") : "";
+  // Product names from https://sekaigateway.xyz/id/coding.
+  const names = new Map([
+    ["cp7", "Coding Plan Basic"],
+    ["cp30", "Coding Plan Pro"],
+    ["cpmax", "Coding Plan MAX"],
+    ["cpultra", "Coding Plan Ultra"],
+  ]);
+  return names.get(code) || code || "Coding Plan";
+}
+
 function record(value: unknown): RecordValue {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as RecordValue)
@@ -116,7 +128,7 @@ export function formatUsage(data: RecordValue, version: UsageVersion): string {
 
   const plan = record(data.codingPlan);
   if (Object.keys(plan).length) {
-    lines.push("", `Coding Plan: ${text(plan.plan)} (${text(plan.status ?? state(plan.active))})`);
+    lines.push("", `${codingPlanName(plan.plan)} (${text(plan.status ?? state(plan.active))})`);
     const usage = record(plan.usage);
     lines.push(`Token terpakai: ${count(usage.tokens)} · Request: ${count(usage.requests)}`);
     if (plan.expiresAt !== undefined) lines.push(`Berakhir: ${date(plan.expiresAt)}`);
@@ -147,7 +159,7 @@ export function formatSummary(data: RecordValue, version: UsageVersion): string 
     return `Sekai v1 · Saldo ${money} · Token PAYG ${count(record(data.payg).tokensUsed)}`;
   }
   const plan = record(data.codingPlan);
-  const name = clean(plan.plan) || "Coding Plan";
+  const name = codingPlanName(plan.plan);
   const status = plan.active === false ? " · nonaktif" : "";
   const windows = record(record(plan.pool).windows);
   const limits = [["fiveHour", "5 jam"], ["week", "Minggu"], ["month", "Bulan"]]
